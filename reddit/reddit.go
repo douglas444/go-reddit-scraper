@@ -1,7 +1,7 @@
 package reddit
 
 import (
-	"encoding/json"
+    "encoding/json"
     "fmt"
     "net/http"
     "net/url"
@@ -26,14 +26,14 @@ type Post struct {
 }
 
 type postListing struct {
-	Kind string `json:"kind"`
-	Data struct {
-		Modhash  string `json:"modhash"`
-		Children []struct {
-			Kind string    `json:"kind"`
-			Data Post `json:"data"`
-		} `json:"children"`
-	} `json:"data"`
+    Kind string `json:"kind"`
+    Data struct {
+        Modhash  string `json:"modhash"`
+        Children []struct {
+            Kind string    `json:"kind"`
+            Data Post `json:"data"`
+        } `json:"children"`
+    } `json:"data"`
 }
 
 
@@ -57,17 +57,17 @@ func Search(query string, sort string, limit int) ([]Post, error) {
 
     defer resp.Body.Close();
 
-	var result postListing;
-	err = json.NewDecoder(resp.Body).Decode(&result)
-	if err != nil {
-		return nil, err
-	}
+    var result postListing;
+    err = json.NewDecoder(resp.Body).Decode(&result)
+    if err != nil {
+        return nil, err
+    }
 
-	var posts []Post
-	for _, post := range result.Data.Children {
-		posts = append(posts, post.Data)
-	}
+    var posts []Post
+    for _, post := range result.Data.Children {
+        posts = append(posts, post.Data)
+    }
 
-	return posts, nil
+    return posts, nil
 
 }

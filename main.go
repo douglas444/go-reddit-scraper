@@ -4,8 +4,8 @@ import (
     "bufio"
     "os"
     "fmt"
-	"strconv"
-	"strings"
+    "strconv"
+    "strings"
     "github.com/douglas444/go-reddit-scraper/reddit"
 )
 
