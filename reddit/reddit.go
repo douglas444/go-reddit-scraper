@@ -9,18 +9,18 @@ import (
 func Search(keyword string) (string, error) {
 
     url := fmt.Sprintf("http://www.reddit.com/search.json?q=%s", keyword);
-	resp, err := http.Get(url);
+    resp, err := http.Get(url);
 
-	if err != nil {
-		return "", err;
-	}
+    if err != nil {
+        return "", err;
+    }
 
-	defer resp.Body.Close();
+    defer resp.Body.Close();
 
     body, err := ioutil.ReadAll(resp.Body);
     if err != nil {
-		return "", err;
+        return "", err;
     }
 
-	return string(body), nil;
+    return string(body), nil;
 }
