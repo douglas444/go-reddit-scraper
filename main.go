@@ -2,7 +2,7 @@ package main
 
 import (
     "fmt"
-	"github.com/douglas444/go-reddit-scraper/reddit"
+    "github.com/douglas444/go-reddit-scraper/reddit"
 )
 
 func main() {
