@@ -1,52 +1,63 @@
 package main
 
 import (
-    "bufio"
-    "os"
     "fmt"
-    "strings"
     "github.com/douglas444/go-reddit-scraper/reddit"
 )
 
-func exec(query string, c chan reddit.Post) {
+type Job struct {
+    Query string
+    LastId string
+}
 
-    posts, err := reddit.Search(query, "new", 1);
+func worker(jobs chan Job, results chan Job) {
 
-    if err != nil {
-        fmt.Println(err);
-    }
+    for job := range jobs {
 
-    if len(posts) > 0 {
-        c <- posts[0];
+        posts, err := reddit.Search(job.Query, "new", 1);
+
+        if err != nil {
+            fmt.Println(err);
+        }
+
+        if len(posts) > 0 && posts[0].Id != job.LastId {
+
+            job.LastId = posts[0].Id;
+
+            fmt.Printf("Job query: %s\n", job.Query)
+            fmt.Printf("   Id: %s\n", posts[0].Id);
+            fmt.Printf("   Upvotes: %d\n", posts[0].Ups);
+            fmt.Printf("   Downvotes: %d\n", posts[0].Downs);
+            fmt.Printf("   Comments number: %d\n", posts[0].NumComments);
+            fmt.Printf("   Subreddit: %s\n", posts[0].Subreddit);
+            fmt.Printf("   Title: %s\n\n", posts[0].Title);
+        }
+
+        results <- job;
     }
 }
 
 func main() {
 
-    reader := bufio.NewReader(os.Stdin);
+    queries := [3]string{"trump", "bolsonaro", "nicolás maduro"};
+    workerPollSize := 2;
 
-    fmt.Print("Enter query: ");
-    query, _ := reader.ReadString('\n');
-    query = strings.TrimSuffix(query, "\n");
+    jobs := make(chan Job, len(queries) + 1);
+    results := make(chan Job, len(queries));
 
-    c := make(chan reddit.Post);
-    var lastId string;
+    for i := 0; i < workerPollSize; i++ {
+        go worker(jobs, results);
+    } 
+
+    for _, query := range queries {
+        jobs <- Job{query, ""};
+    }
 
     for {
-        go exec(query, c);
-        select {
-            case post := <- c:
-                if post.Id != lastId {
-                    lastId = post.Id;
-                    fmt.Printf("Upvotes: %d\n", post.Ups);
-                    fmt.Printf("Downvotes: %d\n", post.Downs);
-                    fmt.Printf("Comments number: %d\n", post.NumComments);
-                    fmt.Printf("Media URL: %s\n", post.Url);
-                    fmt.Printf("Subreddit: %s\n", post.Subreddit);
-                    fmt.Printf("Title: %s\n\n", post.Title);
-                }
-        }
+        result := <- results;
+        jobs <- result;
     }
+
 }
 
 
