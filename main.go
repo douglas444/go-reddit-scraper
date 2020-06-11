@@ -7,6 +7,8 @@ import (
 
 type Job struct {
     Query string
+    WindowSize int
+    SortBy string
     LastId string
 }
 
@@ -14,23 +16,32 @@ func worker(jobs chan Job, results chan Job) {
 
     for job := range jobs {
 
-        posts, err := reddit.Search(job.Query, "new", 1);
+        posts, err := reddit.Search(job.Query, job.SortBy, job.WindowSize);
 
         if err != nil {
             fmt.Println(err);
         }
 
-        if len(posts) > 0 && posts[0].Id != job.LastId {
+        cutPoint := len(posts) - 1;
+        for i, post := range posts {
+            if post.Id == job.LastId {
+                cutPoint = i - 1;
+                break;
+            }
+        }
 
-            job.LastId = posts[0].Id;
-
+        for i := cutPoint; i >= 0; i-- {
             fmt.Printf("Job query: %s\n", job.Query)
-            fmt.Printf("   Id: %s\n", posts[0].Id);
-            fmt.Printf("   Upvotes: %d\n", posts[0].Ups);
-            fmt.Printf("   Downvotes: %d\n", posts[0].Downs);
-            fmt.Printf("   Comments number: %d\n", posts[0].NumComments);
-            fmt.Printf("   Subreddit: %s\n", posts[0].Subreddit);
-            fmt.Printf("   Title: %s\n\n", posts[0].Title);
+            fmt.Printf("   Id: %s\n", posts[i].Id);
+            fmt.Printf("   Upvotes: %d\n", posts[i].Ups);
+            fmt.Printf("   Downvotes: %d\n", posts[i].Downs);
+            fmt.Printf("   Comments number: %d\n", posts[i].NumComments);
+            fmt.Printf("   Subreddit: %s\n", posts[i].Subreddit);
+            fmt.Printf("   Title: %s\n\n", posts[i].Title);
+        } 
+
+        if len(posts) > 0 && posts[0].Id != job.LastId {
+            job.LastId = posts[0].Id;
         }
 
         results <- job;
@@ -39,7 +50,7 @@ func worker(jobs chan Job, results chan Job) {
 
 func main() {
 
-    queries := [3]string{"trump", "bolsonaro", "nicolás maduro"};
+    queries := [3]string{"java", "golang", "javascript"};
     workerPollSize := 2;
 
     jobs := make(chan Job, len(queries) + 1);
@@ -50,7 +61,7 @@ func main() {
     } 
 
     for _, query := range queries {
-        jobs <- Job{query, ""};
+        jobs <- Job{query, 3, "new", ""};
     }
 
     for {
