@@ -41,7 +41,7 @@ type postListing struct {
 func Search(query string, sort string, limit int) ([]Post, error) {
 
     client := &http.Client{}
-    urlStr := fmt.Sprintf("http://www.reddit.com/search.json?q=%s&sort=%s&limit=%d", url.QueryEscape(query), sort, limit);
+    urlStr := fmt.Sprintf("https://www.reddit.com/search.json?q=%s&sort=%s&limit=%d", url.QueryEscape(query), sort, limit);
 
     req, err := http.NewRequest("GET", urlStr, nil)
     if err != nil {
@@ -60,14 +60,14 @@ func Search(query string, sort string, limit int) ([]Post, error) {
     var result postListing;
     err = json.NewDecoder(resp.Body).Decode(&result)
     if err != nil {
-        return nil, err
+        return nil, err;
     }
 
-    var posts []Post
+    var posts []Post;
     for _, post := range result.Data.Children {
-        posts = append(posts, post.Data)
+        posts = append(posts, post.Data);
     }
 
-    return posts, nil
+    return posts, nil;
 
 }
