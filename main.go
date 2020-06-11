@@ -31,13 +31,13 @@ func worker(jobs chan Job, results chan Job) {
         }
 
         for i := cutPoint; i >= 0; i-- {
-            fmt.Printf("Job query: %s\n", job.Query)
-            fmt.Printf("   Id: %s\n", posts[i].Id);
-            fmt.Printf("   Upvotes: %d\n", posts[i].Ups);
-            fmt.Printf("   Downvotes: %d\n", posts[i].Downs);
-            fmt.Printf("   Comments number: %d\n", posts[i].NumComments);
-            fmt.Printf("   Subreddit: %s\n", posts[i].Subreddit);
-            fmt.Printf("   Title: %s\n\n", posts[i].Title);
+            fmt.Println("Job query:", job.Query,
+                "\nId:", posts[i].Id,
+                "\nUpvotes:", posts[i].Ups,
+                "\nDownvotes:", posts[i].Downs,
+                "\nComments number:",  posts[i].NumComments,
+                "\nSubreddit:", posts[i].Subreddit,
+                "\nTitle:", posts[i].Title , "\n\n");
         } 
 
         if len(posts) > 0 && posts[0].Id != job.LastId {
