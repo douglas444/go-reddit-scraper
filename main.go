@@ -8,6 +8,19 @@ import (
     "github.com/douglas444/go-reddit-scraper/reddit"
 )
 
+type RequestType int
+
+const(
+    Exit RequestType = 1
+    ActivateJob RequestType = 2
+    DeactivateJob RequestType = 3
+)
+
+type Request struct {
+    Type RequestType
+    JobId int
+}
+
 type Job struct {
     Id int
     Query string
@@ -34,7 +47,7 @@ func scrape(query string, sortBy string, windowSize int, lastId string) string {
     }
 
     for i := cutPoint; i >= 0; i-- {
-        fmt.Println(query, "|", posts[i].Title);
+        fmt.Println(query, "|", posts[i].Title, "\n");
     }
 
     if len(posts) > 0 && posts[0].Id != lastId {
@@ -56,11 +69,55 @@ func worker(jobs chan *Job) {
     }
 }
 
-func serverStart(exit chan bool, jobById map[int]*Job, jobs chan *Job) {
+func requestProcessor(requests chan Request, exit chan bool, jobs chan *Job, jobById map[int]*Job) {
+
+    for request := range requests {
+ 
+        switch request.Type {
+
+        case Exit:
+
+            exit <- true;
+            fmt.Println("exiting");
+
+        case ActivateJob:
+
+            if _, isPresent := jobById[request.JobId]; !isPresent {
+                fmt.Println("ignoring activate request for invalid job id");
+            } else if job, _ := jobById[request.JobId]; job.IsActive {
+                fmt.Println("ignoring activate request for already active job");
+            } else {
+                jobById[request.JobId].IsActive = true;
+                jobs <- jobById[request.JobId];
+                fmt.Println("activating job", request.JobId);
+            }
+
+        case DeactivateJob:
+
+            if _, isPresent := jobById[request.JobId]; !isPresent {
+                fmt.Println("ignoring request for invalid job id");
+            } else if job, _ := jobById[request.JobId]; !job.IsActive {
+                fmt.Println("ignoring deactivate request for already deactive job");
+            } else {
+                jobById[request.JobId].IsActive = false;     
+                fmt.Println("deactivating job", request.JobId);
+            }
+        }
+    }
+}
+
+func serverStart(requests chan Request) {
     
     http.HandleFunc("/exit", func(w http.ResponseWriter, req *http.Request) {
-        fmt.Println("[SERVER LOG] exiting...");
-        exit <- true;
+
+        request := Request{Exit, -1};
+        select {
+        case requests <- request:
+            break;
+        default:
+            w.WriteHeader(503);
+        }
+
     });
 
     http.HandleFunc("/deactivate/", func(w http.ResponseWriter, req *http.Request) {
@@ -70,13 +127,16 @@ func serverStart(exit chan bool, jobById map[int]*Job, jobs chan *Job) {
         if err != nil {
             w.WriteHeader(400);
             return;
-        } else if _, isPresent := jobById[jobId]; !isPresent {
-            w.WriteHeader(400);
-            return;
-        } else {
-            jobById[jobId].IsActive = false;
-            fmt.Println("[SERVER LOG] job", jobById[jobId].Id, "deactivated");
         }
+
+        request := Request{DeactivateJob, jobId};
+        select {
+        case requests <- request:
+            break;
+        default:
+            w.WriteHeader(503);
+        }
+
     });
 
     http.HandleFunc("/activate/", func(w http.ResponseWriter, req *http.Request) {
@@ -86,14 +146,16 @@ func serverStart(exit chan bool, jobById map[int]*Job, jobs chan *Job) {
         if err != nil {
             w.WriteHeader(400);
             return;
-        } else if job, isPresent := jobById[jobId]; !isPresent || job.IsActive {
-            w.WriteHeader(400);
-            return;
-        } else {
-            jobById[jobId].IsActive = true;
-            jobs <- jobById[jobId];
-            fmt.Println("[SERVER LOG] job", jobById[jobId].Id, "activated");
         }
+
+        request := Request{ActivateJob, jobId};
+        select {
+        case requests <- request:
+            break;
+        default:
+            w.WriteHeader(503);
+        }
+
     });
 
     http.ListenAndServe(":8080", nil);
@@ -104,6 +166,7 @@ func main() {
 
     queries := [3]string{"bolsonaro", "trump", "nicolás maduro"};
     workerPollSize := 2;
+    requestsChannelSize := 3;
 
     jobs := make(chan *Job, len(queries) + 1);
 
@@ -119,9 +182,11 @@ func main() {
         jobs <- &job;
     }
 
+    requests := make(chan Request, requestsChannelSize);
     exit := make(chan bool);
 
-    go serverStart(exit, jobById, jobs);
+    go requestProcessor(requests, exit, jobs, jobById);
+    go serverStart(requests);
 
     <- exit;
 
