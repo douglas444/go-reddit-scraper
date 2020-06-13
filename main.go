@@ -28,6 +28,7 @@ type Job struct {
     SortBy string
     LastId string
     IsActive bool
+    IsOnline bool
 }
 
 func scrape(query string, sortBy string, windowSize int, lastId string) string {
@@ -63,7 +64,10 @@ func worker(jobs chan *Job) {
  
         if job.IsActive {
             job.LastId = scrape(job.Query, job.SortBy, job.WindowSize, job.LastId);
+            job.IsOnline = true;
             jobs <- job;
+        } else {
+            job.IsOnline = false;
         }
 
     }
@@ -77,30 +81,32 @@ func requestProcessor(requests chan Request, exit chan bool, jobs chan *Job, job
 
         case Exit:
 
-            exit <- true;
             fmt.Println("exiting");
+            exit <- true;
 
         case ActivateJob:
 
             if _, isPresent := jobById[request.JobId]; !isPresent {
-                fmt.Println("ignoring activate request for invalid job id");
+                fmt.Println("ignoring activation request for invalid job id\n");
             } else if job, _ := jobById[request.JobId]; job.IsActive {
-                fmt.Println("ignoring activate request for already active job");
+                fmt.Println("ignoring activation request for already active job\n");
+            } else if job, _ := jobById[request.JobId]; job.IsOnline {
+                fmt.Println("ignoring activation request because even though the job is inactive, it still on channel\n");
             } else {
                 jobById[request.JobId].IsActive = true;
                 jobs <- jobById[request.JobId];
-                fmt.Println("activating job", request.JobId);
+                fmt.Println("activating job", request.JobId, "\n");
             }
 
         case DeactivateJob:
 
             if _, isPresent := jobById[request.JobId]; !isPresent {
-                fmt.Println("ignoring request for invalid job id");
+                fmt.Println("ignoring request for invalid job id\n");
             } else if job, _ := jobById[request.JobId]; !job.IsActive {
-                fmt.Println("ignoring deactivate request for already deactive job");
+                fmt.Println("ignoring deactivation request for already inactive job\n");
             } else {
                 jobById[request.JobId].IsActive = false;     
-                fmt.Println("deactivating job", request.JobId);
+                fmt.Println("deactivating job", request.JobId, "\n");
             }
         }
     }
@@ -113,7 +119,7 @@ func serverStart(requests chan Request) {
         request := Request{Exit, -1};
         select {
         case requests <- request:
-            break;
+            w.WriteHeader(202);
         default:
             w.WriteHeader(503);
         }
@@ -132,7 +138,7 @@ func serverStart(requests chan Request) {
         request := Request{DeactivateJob, jobId};
         select {
         case requests <- request:
-            break;
+            w.WriteHeader(202);
         default:
             w.WriteHeader(503);
         }
@@ -151,7 +157,7 @@ func serverStart(requests chan Request) {
         request := Request{ActivateJob, jobId};
         select {
         case requests <- request:
-            break;
+            w.WriteHeader(202);
         default:
             w.WriteHeader(503);
         }
@@ -177,7 +183,7 @@ func main() {
     jobById := make(map[int]*Job);
 
     for id, query := range queries {
-        job := Job{id, query, 3, "new", "", true};
+        job := Job{id, query, 3, "new", "", true, false};
         jobById[id] = &job;
         jobs <- &job;
     }
