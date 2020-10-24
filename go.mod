@@ -1,3 +1,3 @@
-module github.com/douglas444/go-reddit-scraper
+module github.com/douglas444/reddit
 
 go 1.14
